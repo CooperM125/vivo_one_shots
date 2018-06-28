@@ -18,12 +18,15 @@ def get_config(config_path):
         exit()
     return config
 
-def make_folder(timestamp):
-    path = os.path.join('data_out', timestamp)
-    if not os.pathisdir(path):
-        os.mkdir(path)
+def make_folders(top_folder, sub_folders=None):
+    if not os.path.isdir(top_folder):
+        os.mkdir(top_folder)
 
-    return path
+    if sub_folders:
+        sub_top_folder = os.path.join(top_folder, sub_folders[0])
+        top_folder = make_folders(sub_top_folder, sub_folders[1:])
+
+    return top_folder
 
 def do_query(query, config):
     print("Query:\n" + query)
@@ -76,7 +79,7 @@ def create_sub_file(connection, uris, sub_file):
 def main(config_path):
     config = get_config(config_path)
     timestamp = datetime.datetime.now().strftime("%Y_%m_%d")
-    path = make_folder(timestamp)
+    path = make_folders('data_out', [timestamp,])
     sub_file = 'cluster_sub_out.rdf'
     full_path = os.path.join(path, sub_file)
     connection = Connection(config.get('namespace'), config.get('email'), config.get('password'), config.get('update_endpoint'), config.get('query_endpoint'))
