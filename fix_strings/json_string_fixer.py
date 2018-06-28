@@ -2,6 +2,7 @@
 import json
 import os.path
 from time import localtime, strftime
+import sys
 
 
 def make_folders(top_folder, sub_folders=None):
@@ -14,11 +15,10 @@ def make_folders(top_folder, sub_folders=None):
 
     return top_folder
 
-def main():
-    input_path = 'journals.json'
+def main(infile):
     predicate = 'http://www.w3.org/2000/01/rdf-schema#label'
 
-    with open(input_path, 'r') as full_set:
+    with open(infile, 'r') as full_set:
         data = json.load(full_set)
 
     bad_triples = []
@@ -54,4 +54,4 @@ def main():
             fix_trips.write(trip + '\n')
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1])
