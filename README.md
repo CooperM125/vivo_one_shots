@@ -6,6 +6,9 @@ Quick programs for fixing VIVO issues
 ### clean_duplicate_authorships
 This tool is used for when single instances of an author have been listed multiple times on an article.
 
+### clean_profile_all_duplicate_authorships
+This tool is used for when a singe instance of an article has been listed multiple times on a profile.
+
 ### clean_ghost_authors
 This tool is used when an author has duplicate profiles that are listed on the same article. If the duplicates have no other publications, this tool will also remove those.
 If an article has duplicate authorships and ghost authors, clean the authorships first.
