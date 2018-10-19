@@ -79,7 +79,7 @@ def main(config_path):
     sub_n = subject.split('/')[-1]
     timestamp = datetime.now().strftime("%Y_%m_%d")
     path = make_folders('data_out', [timestamp, sub_n])
-    sub_file = os.path.join(path, 'sub_single_pub_dupes.rdf')
+    sub_file = os.path.join(path, 'sub_single_profile_author_dupes.rdf')
     connection = Connection(config.get('namespace'), config.get('email'), config.get('password'), config.get('update_endpoint'), config.get('query_endpoint'))
 
     triples = get_trips(connection, subject)
