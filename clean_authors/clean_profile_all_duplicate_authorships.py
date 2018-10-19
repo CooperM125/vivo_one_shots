@@ -65,14 +65,6 @@ def get_trips(connection, subject):
             trip_params = get_all_triples.get_params(connection)
             trip_params['Thing'].n_number = authorship.rsplit('/', 1)[-1]
             triples += get_all_triples.run(connection, **trip_params)
-        # uri = parse_json(listing, 'author')
-        # relation = parse_json(listing, 'relation')
-        # if uri not in authors.keys():
-        #     authors[uri] = relation
-        # else:
-        #     trip_params = get_all_triples.get_params(connection)
-        #     trip_params['Thing'].n_number = relation.rsplit('/', 1)[-1]
-        #     triples += get_all_triples.run(connection, **trip_params)
     return triples
 
 def create_sub_file(triples, sub_file):
