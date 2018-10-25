@@ -3,7 +3,8 @@ This tool cleans out articles with hundreds or even thousands of authors that ha
 If the author has no other publications besides the target article, the author's profile is deleted.
 '''
 
-from datetime import datetime
+import datetime
+import os
 import urllib
 import sys
 import requests
@@ -107,8 +108,8 @@ def get_relates(connection, authors, subject):
     return authors
 
 def create_sub_file(connection, authors, sub_file):
+    trips = []
     for uri, person in authors.items():
-        trips = []
         for ship in person.authorships:
             trip_params = get_all_triples.get_params(connection)
             trip_params['Thing'].n_number = ship.rsplit('/', 1)[-1]
@@ -117,14 +118,16 @@ def create_sub_file(connection, authors, sub_file):
             person_params = get_all_triples.get_params(connection)
             person_params['Thing'].n_number = person.n.rsplit('/', 1)[-1]
             trips += get_all_triples.run(connection, **person_params)
-        with open(sub_file, 'a+') as rdf:
-            rdf.write(" . \n".join(trips))
+    with open(sub_file, 'a+') as rdf:
+        rdf.write(" . \n".join(trips))
+        rdf.write(" . \n")
 
 def main(config_path):
     subject = 'http://vivo.ufl.edu/individual/n496902811'
 
     timestamp = datetime.datetime.now().strftime("%Y_%m_%d")
-    path = make_folders('data_out', [timestamp,])
+    sub_n = subject.split('/')[-1]
+    path = make_folders('data_out', [timestamp, sub_n])
     sub_file = 'bomb_sub_out.rdf'
     full_path = os.path.join(path, sub_file)
     config = get_config(config_path)
@@ -132,7 +135,7 @@ def main(config_path):
 
     authors = get_authors(connection, subject)
     authors = get_relates(connection, authors, subject)
-    create_sub_file(connection, authors, sub_file)
+    create_sub_file(connection, authors, full_path)
 
 if __name__ == '__main__':
     main(sys.argv[1])
