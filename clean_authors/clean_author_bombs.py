@@ -5,7 +5,6 @@ If the author has no other publications besides the target article, the author's
 
 import datetime
 import os
-import urllib
 import sys
 import requests
 import yaml
