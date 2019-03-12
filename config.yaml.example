@@ -4,6 +4,6 @@ password: 'MyPassword'
 update_endpoint: 'http://school.edu/vivo/api/sparqlUpdate'
 query_endpoint: 'http://school.edu/vivo/api/sparqlQuery'
 
-namespace: 'http://school.edu/individual/'
-
 subject: 'http://school.edu/individual/nNumberHere'
+
+out_folder: '/path/to/folder'

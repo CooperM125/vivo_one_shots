@@ -1,17 +1,19 @@
+#!/usr/bin/python
+
 '''
 Use on publications that have authors related multiple times.
 This tool is for when a single instance of an author is listed multiple times.
-Produces a file to sub out triples 
+Produces a file to sub out triples.
 '''
-from datetime import datetime
-import os.path
-import urllib
-import sys
-import requests
-import yaml
 
-from vivo_utils.queries import get_all_triples
-from vivo_utils.connections.vivo_connect import Connection
+from datetime import datetime
+import os
+import yaml
+import sys
+sys.path.append('.')
+
+from utils import Aide
+
 
 def get_config(config_path):
     try:
@@ -22,25 +24,8 @@ def get_config(config_path):
         exit(e)
     return config
 
-def make_folders(top_folder, sub_folders=None):
-    if not os.path.isdir(top_folder):
-        os.mkdir(top_folder)
 
-    if sub_folders:
-        sub_top_folder = os.path.join(top_folder, sub_folders[0])
-        top_folder = make_folders(sub_top_folder, sub_folders[1:])
-
-    return top_folder
-
-def parse_json(data, search):
-    try:
-        value = data[search]['value']
-    except KeyError as e:
-        value = ''
-
-    return value
-
-def get_trips(connection, subject):
+def get_trips(aide, subject):
     q = '''\
     SELECT ?author ?relation
     WHERE {{
@@ -50,25 +35,18 @@ def get_trips(connection, subject):
     }}
     '''.format(subject)
 
-    res = connection.run_query(q)
-    auth_dump = res.json()
+    res = aide.do_query(q)
     authors = {}
     triples = []
-    for listing in auth_dump['results']['bindings']:
-        uri = parse_json(listing, 'author')
-        relation = parse_json(listing, 'relation')
+    for listing in res['results']['bindings']:
+        uri = aide.parse_json(listing, 'author')
+        relation = aide.parse_json(listing, 'relation')
         if uri not in authors.keys():
             authors[uri] = relation
         else:
-            trip_params = get_all_triples.get_params(connection)
-            trip_params['Thing'].n_number = relation.rsplit('/', 1)[-1]
-            triples += get_all_triples.run(connection, **trip_params)
+            triples.extend(aide.get_all_triples(relation))
     return triples
 
-def create_sub_file(triples, sub_file):
-    with open(sub_file, 'a+') as rdf:
-        rdf.write(" . \n".join(triples))
-        rdf.write(" . \n")
 
 def main(config_path):
     subject = 'http://vivo.ufl.edu/individual/n6396189090'
@@ -83,5 +61,7 @@ def main(config_path):
     triples = get_trips(connection, subject)
     create_sub_file(triples, sub_file)
 
+
 if __name__ == '__main__':
     main(sys.argv[1])
+    
