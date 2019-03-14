@@ -6,8 +6,9 @@ class Aide(object):
         self.email = email
         self.password = password
 
-    def do_query(self, query):
-        print("Query:\n" + query)
+    def do_query(self, query, silent=False):
+        if not silent:
+            print("Query:\n" + query)
         payload = {
             'email': self.email,
             'password': self.password,
@@ -26,11 +27,11 @@ class Aide(object):
             exit("Error: check server")
         return response.json()
 
-    def get_all_triples(self, subject):
+    def get_all_triples(self, subject, silent=False):
         triples = []
         
         s_query = """ SELECT ?s ?p ?o WHERE{{<{}> ?p ?o .}} """.format(subject)
-        s_res = self.do_query(s_query)
+        s_res = self.do_query(s_query, silent)
         for listing in s_res['results']['bindings']:
             pred = self.parse_json(listing, 'p', True)
             obj = self.parse_json(listing, 'o', True)
@@ -38,7 +39,7 @@ class Aide(object):
             triples.append(trip)
 
         o_query = """ SELECT ?s ?p ?o WHERE{{?s ?p <{}> .}} """.format(subject)
-        o_res = self.do_query(o_query)
+        o_res = self.do_query(o_query, silent)
         for listing in o_res['results']['bindings']:
             subj = self.parse_json(listing, 's', True)
             pred = self.parse_json(listing, 'p', True)
