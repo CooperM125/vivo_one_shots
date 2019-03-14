@@ -49,17 +49,20 @@ def get_trips(aide, subject):
 
 
 def main(config_path):
-    subject = 'http://vivo.ufl.edu/individual/n6396189090'
     config= get_config(config_path)
 
-    sub_n = subject.split('/')[-1]
+    subject = config.get('subject')
     timestamp = datetime.now().strftime("%Y_%m_%d")
-    path = make_folders('data_out', [timestamp, sub_n])
+    path = 'data_out/' + timestamp + '/' + subject.split('/')[-1]
+    try:
+        os.makedirs(path)
+    except FileExistsError:
+        pass
     sub_file = os.path.join(path, 'sub_single_pub_dupes.rdf')
-    connection = Connection(config.get('namespace'), config.get('email'), config.get('password'), config.get('update_endpoint'), config.get('query_endpoint'))
+    aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
 
-    triples = get_trips(connection, subject)
-    create_sub_file(triples, sub_file)
+    triples = get_trips(aide, subject)
+    aide.create_file(sub_file, triples)
 
 
 if __name__ == '__main__':
