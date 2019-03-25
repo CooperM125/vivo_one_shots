@@ -16,7 +16,8 @@ class Aide(object):
         }
         headers = {'Accept': 'application/sparql-results+json'}
         response = requests.get(self.q_endpoint, params=payload, headers=headers, verify=False)
-        print(response)
+        if not silent:
+            print(response)
         if response.status_code == 400:
             exit("Error: check query")
         elif response.status_code == 403:
@@ -49,7 +50,11 @@ class Aide(object):
         return triples
 
     def parse_json(self, data, search, prep=False):
-        value = data[search]['value']
+        try:
+            value = data[search]['value']
+        except KeyError:
+            return None
+            
         if prep:
             if 'http' in value:
                 value = '<' + value + '>'
