@@ -1,5 +1,10 @@
 # vivo_one_shots
 Quick programs for fixing VIVO issues
+Python3
+## Setup
+create virtual enviroment
+pip install request
+pip install pyyaml
 
 ## Person Audits
 Tools for cleaning up Persons in VIVO

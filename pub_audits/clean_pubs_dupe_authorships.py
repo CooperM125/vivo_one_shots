@@ -16,6 +16,9 @@ from utils import Aide
 
 
 def get_config(config_path):
+    ''' 
+    `get_config` Takes in path to config file parses file and returns a dictionary
+    '''
     try:
         with open(config_path, 'r') as config_file:
             config = yaml.load(config_file.read())
