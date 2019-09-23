@@ -29,6 +29,9 @@ def get_config(config_path):
 
 
 def get_trips(aide, subject):
+    '''
+    gets trips that should be removed from vivo with this specific data problem
+    '''
     q = '''\
     SELECT ?author ?relation
     WHERE {{

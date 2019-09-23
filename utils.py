@@ -30,7 +30,7 @@ class Aide(object):
 
     def get_all_triples(self, subject, silent=False):
         triples = []
-        
+        # edit to specify graph k2 (right befoir where)
         s_query = """ SELECT ?s ?p ?o WHERE{{<{}> ?p ?o .}} """.format(subject)
         s_res = self.do_query(s_query, silent)
         for listing in s_res['results']['bindings']:
@@ -38,7 +38,7 @@ class Aide(object):
             obj = self.parse_json(listing, 'o', True)
             trip = '<' + subject + '> ' + pred + ' ' + obj
             triples.append(trip)
-
+        # edit to specify graph k2
         o_query = """ SELECT ?s ?p ?o WHERE{{?s ?p <{}> .}} """.format(subject)
         o_res = self.do_query(o_query, silent)
         for listing in o_res['results']['bindings']:
@@ -55,7 +55,7 @@ class Aide(object):
         except KeyError:
             return None
             
-        if prep:
+        if prep: # link as literal. find data type of links (they may brake this)
             if 'http' in value:
                 value = '<' + value + '>'
             else:
