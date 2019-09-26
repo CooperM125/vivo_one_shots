@@ -1,0 +1,8 @@
+# finds publications that have duplicate authors
+SELECT ?o 
+    WHERE 
+    {
+      <> <http://vivoweb.org/ontology/core#relatedBy> ?relation .
+      ?relation <http://vivoweb.org/ontology/core#relates> ?author .
+      ?author <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+    }
