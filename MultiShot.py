@@ -24,21 +24,21 @@ def main():
 
 def parse_args(args=sys.argv) -> (list, list):
     parser = optparse.OptionParser()
-    parser.add_option("--quiet", action="store_true", dest="quiet", default=False)
-    parser.add_option("--queries", action="store", dest="queryPath", default="queries")
-    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="oneshots")
-    parser.add_option("--config", action="store", dest="config", default="config.yaml")
-    parser.add_option("--fixUri", action="store", dest="uri", default="")  # TODO not yet implamented
+    parser.add_option("--fixUri", action="store", dest="uri", default="", help="Not yet implamented")  # TODO not yet implamented
+    parser.add_option("--queries", action="store", dest="queryPath", default="queries", help="")
+    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="oneshots", help="")
+    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
+    parser.add_option("--config", action="store", dest="config", default="config.yaml", help="")
     return parser.parse_args(args)
 
 
-def configure_logging(be_quiet):
+def configure_logging(quiet):
     fmt = '%(asctime)s  %(levelname)-9s  %(message)s'
     logfile = 'MultiShot.log'
 
     logging.basicConfig(level=logging.DEBUG, format=fmt, filename=logfile)
 
-    if be_quiet:
+    if quiet:
         # Do not write logs to console; normal output still goes to stdout.
         return
 
@@ -74,24 +74,73 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
     logging.info('Running queries...')
+
     subjects = []
+    total_count = 0
+    # add counter for number of data problems fixed
     for query_file in all_queries:  # gets all subjects that need to be changed.
         logging.info("Opened query file %s", query_file)
         cleaner_name = pairs[query_file][:-3]
         logging.info('Attempting %s query...', query_file[:-3])
         subjects = query_uri(aide, queries_path + '/' + query_file, quiet)
-        logging.info('Query was successful')
+        logging.info('Query was successful, %s dataproblems found in %s query', len(subjects), query_file[:-3])
+
         # get trips for both add and sub (try and accept)
-        # # make function for add and sub
-        for subject in subjects:
-            try:
-                cleaner = getattr(oneshots, cleaner_name)  # NOTE must be a better way
-                cleaner_function = getattr(cleaner, 'get_trips')  # returns the gettrips function for specific cleaner.
-                trips = cleaner_function(aide, subject, quiet)
-                save_trips(aide, subject, trips, cleaner_name)  # saves to file data_out
-            except AttributeError:
-                logging.error('Could not run oneshot %s', cleaner_name)
-                break
+        # # make function for add and sub (may need to run both at once instead of one at a time)
+        corrected = False
+        try:
+            count_sub = sub_cleaner(aide, subjects, cleaner_name, quiet)
+            corrected = True
+        except AttributeError:
+            logging.warn('Could not run sub_cleaner')
+            count_sub = 0
+            pass
+        try:
+            count_add = add_cleaner(aide, subjects, cleaner_name, quiet)
+            corrected = True
+        except AttributeError:
+            if not corrected:
+                logging.error('Failed to run oneshot %s', query_file[:-3])
+                sys.exit(2)
+            else:
+                logging.warn('Could not run add_cleaner')
+                count_add = 0
+            pass
+        total_count += (count_add + count_sub)
+        logging.info('Datum corrected %s using %s', count_add + count_sub, cleaner_name)
+    logging.info('Total datum corrected %s', total_count)
+
+
+def add_cleaner(aide, subjects, cleaner_name, quiet):
+    count = 0
+    oneShot = getattr(oneshots, cleaner_name)  # NOTE must be a better way
+    oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
+
+    for subject in subjects:
+        count += 1
+        try:
+            trips = oneShot_func(aide, subject, quiet)
+            save_trips(aide, subject, trips, cleaner_name + '_add')  # saves to file data_out
+        except AttributeError:
+            logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
+            break
+    return count
+
+def sub_cleaner(aide, subjects, cleaner_name, quiet):
+    count = 0
+    oneShot = getattr(oneshots, cleaner_name)  # NOTE must be a better way
+    oneShot_func = getattr(oneShot, 'get_sub_trips')
+
+    for subject in subjects:
+        count += 1
+        try:
+            trips = oneShot_func(aide, subject, quiet)
+            save_trips(aide, subject, trips, cleaner_name + '_sub')  # saves to file data_out
+        except AttributeError:
+            logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
+            break
+    return count
+
 
 def match_oneshot_to_query(oneshots, queries, logging):
     '''
@@ -116,7 +165,7 @@ def save_trips(aide, subject, triples, cleaner_name):
         os.makedirs(path)
     except FileExistsError:
         pass
-    sub_file = os.path.join(path, cleaner_name +'.rdf')
+    sub_file = os.path.join(path, cleaner_name + '.rdf')
     aide.create_file(sub_file, triples)
 
 def query_uri(aide, file, quiet) -> (list):

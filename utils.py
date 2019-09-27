@@ -1,4 +1,6 @@
 import requests
+import urllib3
+urllib3.disable_warnings()
 
 class Aide(object):
     def __init__(self, query_endpoint, email, password):
