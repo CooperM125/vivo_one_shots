@@ -17,15 +17,15 @@ def main():
     configure_logging(opts.quiet)
     config = get_config(opts.config)
 
-    logging.info("Starting dfixer...")
+    logging.info("Starting MultiShot...")
     one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath)
-    logging.info("Finished dfixer... data_out file has triples to upload")
+    logging.info("Finished MultiShot... data_out file has triples to upload")
     return
 
 def parse_args(args=sys.argv) -> (list, list):
     parser = optparse.OptionParser()
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False)
-    parser.add_option("--queries", action="store", dest="queryPath", default="queries")  # maynot need this just call on the oneshots
+    parser.add_option("--queries", action="store", dest="queryPath", default="queries")
     parser.add_option("--oneShots", action="store", dest="oneShotPath", default="oneshots")
     parser.add_option("--config", action="store", dest="config", default="config.yaml")
     parser.add_option("--fixUri", action="store", dest="uri", default="")  # TODO not yet implamented
@@ -34,7 +34,7 @@ def parse_args(args=sys.argv) -> (list, list):
 
 def configure_logging(be_quiet):
     fmt = '%(asctime)s  %(levelname)-9s  %(message)s'
-    logfile = 'dfixer.log'
+    logfile = 'MultiShot.log'
 
     logging.basicConfig(level=logging.DEBUG, format=fmt, filename=logfile)
 
@@ -62,7 +62,7 @@ def get_config(config_path):
 
 def one_shot_iterator(config, logging, queries_path, oneShot_path):
     """Loops over a list of one_shot fixes.
-        AKA the multi_shot :)
+        aka the heart of MultiShot :)
     """
     all_queries = [f for f in os.listdir(queries_path) if f.endswith('.rq')]
     all_queries.sort()
@@ -78,23 +78,20 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path):
     for query_file in all_queries:  # gets all subjects that need to be changed.
         logging.info("Opened query file %s", query_file)
         cleaner_name = pairs[query_file][:-3]
-        # NOTE temp not in use for testing
-
+        logging.info('Attempting %s query...', query_file[:-3])
         subjects = query_uri(aide, queries_path + '/' + query_file)
-
-        # subjects.append('http://vivo.ufl.edu/individual/n6267060498')  # NOTE temp code
-        # get attribute for specific data fix
+        logging.info('Query was successful')
+        # get trips for both add and sub (try and accept)
+        # # make function for add and sub
         for subject in subjects:
             try:
                 cleaner = getattr(oneshots, cleaner_name)  # NOTE must be a better way
-                function = getattr(cleaner, 'get_trips')
-                trips = function(aide, subject)
-                save_trips(aide, subject, trips, cleaner_name)
+                cleaner_function = getattr(cleaner, 'get_trips')  # returns the gettrips function for specific cleaner.
+                trips = cleaner_function(aide, subject)
+                save_trips(aide, subject, trips, cleaner_name)  # saves to file data_out
             except AttributeError:
                 logging.error('Could not run oneshot %s', cleaner_name)
                 break
-        # when done with all subjects
-    # return something or write to file
 
 def match_oneshot_to_query(oneshots, queries, logging):
     '''
@@ -126,12 +123,15 @@ def query_uri(aide, file) -> (list):
     uris = []
     f = open(file, 'r')
     query = f.read()
-    response = aide.do_query(query)
-
-    # 2.) do query
-    # 3.) parse and return uri list
-
+    res = aide.do_query(query)
+    uri_type = fetch_uri_type(res)
+    for listing in res['results']['bindings']:
+        uris.append(aide.parse_json(listing, uri_type)) # needs to be generlized (pubs)
     return uris
+
+def fetch_uri_type(res):
+    type = list(res['results']['bindings'][0])[0]
+    return type
 
 if __name__ == '__main__':
     main()
