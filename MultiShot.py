@@ -18,7 +18,7 @@ def main():
     config = get_config(opts.config)
 
     logging.info("Starting MultiShot...")
-    one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath)
+    one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath, opts.quiet)
     logging.info("Finished MultiShot... data_out file has triples to upload")
     return
 
@@ -60,7 +60,7 @@ def get_config(config_path):
         exit(e)
     return config
 
-def one_shot_iterator(config, logging, queries_path, oneShot_path):
+def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     """Loops over a list of one_shot fixes.
         aka the heart of MultiShot :)
     """
@@ -79,7 +79,7 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path):
         logging.info("Opened query file %s", query_file)
         cleaner_name = pairs[query_file][:-3]
         logging.info('Attempting %s query...', query_file[:-3])
-        subjects = query_uri(aide, queries_path + '/' + query_file)
+        subjects = query_uri(aide, queries_path + '/' + query_file, quiet)
         logging.info('Query was successful')
         # get trips for both add and sub (try and accept)
         # # make function for add and sub
@@ -87,7 +87,7 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path):
             try:
                 cleaner = getattr(oneshots, cleaner_name)  # NOTE must be a better way
                 cleaner_function = getattr(cleaner, 'get_trips')  # returns the gettrips function for specific cleaner.
-                trips = cleaner_function(aide, subject)
+                trips = cleaner_function(aide, subject, quiet)
                 save_trips(aide, subject, trips, cleaner_name)  # saves to file data_out
             except AttributeError:
                 logging.error('Could not run oneshot %s', cleaner_name)
@@ -119,14 +119,14 @@ def save_trips(aide, subject, triples, cleaner_name):
     sub_file = os.path.join(path, cleaner_name +'.rdf')
     aide.create_file(sub_file, triples)
 
-def query_uri(aide, file) -> (list):
+def query_uri(aide, file, quiet) -> (list):
     uris = []
     f = open(file, 'r')
     query = f.read()
-    res = aide.do_query(query)
+    res = aide.do_query(query, quiet)
     uri_type = fetch_uri_type(res)
     for listing in res['results']['bindings']:
-        uris.append(aide.parse_json(listing, uri_type)) # needs to be generlized (pubs)
+        uris.append(aide.parse_json(listing, uri_type))  # needs to be generlized (pubs)
     return uris
 
 def fetch_uri_type(res):

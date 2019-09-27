@@ -11,7 +11,7 @@ from utils import Aide
 Used to test functionality
 '''
 
-def get_trips(aide, subject):
+def get_trips(aide, subject, quiet):
     '''
     gets trips that should be removed from vivo with this specific data problem
     '''
@@ -24,7 +24,7 @@ def get_trips(aide, subject):
     }}
     '''.format(subject)
 
-    res = aide.do_query(q)
+    res = aide.do_query(q, quiet)
     authors = {}
     triples = []
     for listing in res['results']['bindings']:
@@ -33,5 +33,5 @@ def get_trips(aide, subject):
         if uri not in authors.keys():
             authors[uri] = relation
         else:
-            triples.extend(aide.get_all_triples(relation))
+            triples.extend(aide.get_all_triples(relation, quiet))
     return triples
