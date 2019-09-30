@@ -28,7 +28,7 @@ def get_config(config_path):
     return config
 
 
-def get_add_trips(aide, subject, quite):
+def get_sub_trips(aide, subject, quite):
     '''
     gets trips that should be removed from vivo with this specific data problem
     '''

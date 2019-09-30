@@ -9,7 +9,11 @@ import importlib
 sys.path.append('.')
 
 from utils import Aide
-import oneshots
+import audits
+from audits.pub_audits import clean_pubs_dupe_authorships
+from audits import person_audits
+from audits import misc_audits
+
 
 def main():
 
@@ -26,7 +30,7 @@ def parse_args(args=sys.argv) -> (list, list):
     parser = optparse.OptionParser()
     parser.add_option("--fixUri", action="store", dest="uri", default="", help="Not yet implamented")  # TODO not yet implamented
     parser.add_option("--queries", action="store", dest="queryPath", default="queries", help="")
-    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="oneshots", help="")
+    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="audits", help="")  # may be oneshots but generlize to have file. 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
     parser.add_option("--config", action="store", dest="config", default="config.yaml", help="")
     return parser.parse_args(args)
@@ -64,12 +68,10 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     """Loops over a list of one_shot fixes.
         aka the heart of MultiShot :)
     """
-    all_queries = [f for f in os.listdir(queries_path) if f.endswith('.rq')]
-    all_queries.sort()
-
-    all_oneshots = [f for f in os.listdir(oneShot_path) if f.endswith('.py') and f != '__init__.py']
-    all_oneshots.sort()
+    # ~ set up
+    all_oneshots, all_queries = load_oneshots(queries_path, oneShot_path, logging)
     pairs = match_oneshot_to_query(all_oneshots, all_queries, logging)
+    # ~ end of setup
     logging.info("Queries that will be run: %s", all_queries)
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
@@ -113,7 +115,8 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
 
 def add_cleaner(aide, subjects, cleaner_name, quiet):
     count = 0
-    oneShot = getattr(oneshots, cleaner_name)  # NOTE must be a better way
+    files = getattr(audits, 'pub_audits')
+    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way # TODO make generial
     oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
 
     for subject in subjects:
@@ -128,8 +131,9 @@ def add_cleaner(aide, subjects, cleaner_name, quiet):
 
 def sub_cleaner(aide, subjects, cleaner_name, quiet):
     count = 0
-    oneShot = getattr(oneshots, cleaner_name)  # NOTE must be a better way
-    oneShot_func = getattr(oneShot, 'get_sub_trips')
+    files = getattr(audits, 'pub_audits')
+    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way #TODO make generial
+    oneShot_func = getattr(oneShot, "get_sub_trips")
 
     for subject in subjects:
         count += 1
@@ -151,7 +155,7 @@ def match_oneshot_to_query(oneshots, queries, logging):
         if str('clean_' + query_file[:-2] + 'py') in oneshots:  # UGLY but works
             pairs[query_file] = str('clean_' + query_file[:-2] + 'py')
         else:
-            logging.error('Could not find matching oneshot for query %s', query_file)
+            logging.warn('Could not find matching oneshot for query %s', query_file)
     logging.debug('All Queries matched with OneShots')
     return pairs
 
@@ -177,6 +181,28 @@ def query_uri(aide, file, quiet) -> (list):
     for listing in res['results']['bindings']:
         uris.append(aide.parse_json(listing, uri_type))  # needs to be generlized (pubs)
     return uris
+
+def load_oneshots(queries_path, oneShot_path, logging):
+    # defualt - go to every folder that ends with _audits and pull all .py files except
+    try:
+        if oneShot_path == 'audits':
+            files = [f for f in os.listdir('audits') if f.endswith('_audits')]
+            all_oneshots = []
+            for file in files:
+                all_oneshots += ([f for f in os.listdir('audits/' + file) if f.endswith('.py') and f != '__init__.py'])
+            all_oneshots.sort()
+        # input path -  go to input path and do same thing
+        else:
+            all_oneshots = [f for f in os.listdir(oneShot_path) if f.endswith('.py') and f != '__init__.py']
+            all_oneshots.sort()
+
+        all_queries = [f for f in os.listdir(queries_path) if f.endswith('.rq')]
+        all_queries.sort()
+    except Exception:
+        logging.error('Failed to load all queries and oneshots')
+        sys.exit(2)
+
+    return all_oneshots, all_queries
 
 def fetch_uri_type(res):
     type = list(res['results']['bindings'][0])[0]
