@@ -56,8 +56,8 @@ class Aide(object):
             value = data[search]['value']
         except KeyError:
             return None
-            
-        if prep: # link as literal. find data type of links (they may brake this)
+
+        if prep:  # link as literal. find data type of links (they may brake this)
             if 'http' in value:
                 value = '<' + value + '>'
             else:

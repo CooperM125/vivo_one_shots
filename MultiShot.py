@@ -10,7 +10,8 @@ sys.path.append('.')
 
 from utils import Aide
 import audits
-from audits.pub_audits import clean_pubs_dupe_authorships
+from audits.pub_audits import clean_pubs_dupe_authorships  # put in init.py
+from audits.pub_audits import clean_pubs_author_bombs  # put in init.py
 from audits import person_audits
 from audits import misc_audits
 
@@ -115,8 +116,9 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
 
 def add_cleaner(aide, subjects, cleaner_name, quiet):
     count = 0
-    files = getattr(audits, 'pub_audits')
-    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way # TODO make generial
+    type = check_Type(cleaner_name)
+    cleaner_type = getattr(audits, type)
+    oneShot = getattr(cleaner_type, cleaner_name)  # NOTE must be a better way # TODO make generial
     oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
 
     for subject in subjects:
@@ -131,7 +133,8 @@ def add_cleaner(aide, subjects, cleaner_name, quiet):
 
 def sub_cleaner(aide, subjects, cleaner_name, quiet):
     count = 0
-    files = getattr(audits, 'pub_audits')
+    type = check_Type(cleaner_name)
+    files = getattr(audits, type)
     oneShot = getattr(files, cleaner_name)  # NOTE must be a better way #TODO make generial
     oneShot_func = getattr(oneShot, "get_sub_trips")
 
@@ -152,7 +155,8 @@ def match_oneshot_to_query(oneshots, queries, logging):
     '''
     pairs = {}
     for query_file in queries:
-        if str('clean_' + query_file[:-2] + 'py') in oneshots:  # UGLY but works
+        val = str('clean_' + query_file[:-2] + 'py')
+        if val in oneshots:  # UGLY but works
             pairs[query_file] = str('clean_' + query_file[:-2] + 'py')
         else:
             logging.warn('Could not find matching oneshot for query %s', query_file)
@@ -206,6 +210,20 @@ def load_oneshots(queries_path, oneShot_path, logging):
 
 def fetch_uri_type(res):
     type = list(res['results']['bindings'][0])[0]
+    return type
+
+def check_Type(cleaner_name):
+    '''
+    check what type of cleaner given name
+    '''
+    if '_pubs_' in cleaner_name:
+        type = 'pub_audits'
+    elif '_person_' in cleaner_name:
+        type = 'person_audits'
+    elif '_misc_' in cleaner_name:
+        type = 'misc_audits'
+    else:
+        logging.error('Could not find cleaner %s', cleaner_name)
     return type
 
 if __name__ == '__main__':

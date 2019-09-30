@@ -67,10 +67,9 @@ def main(config_path):
     sub_file = os.path.join(path, 'sub_single_pub_dupes.rdf')
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
 
-    triples = get_add_trips(aide, subject)
+    triples = get_sub_trips(aide, subject)
     aide.create_file(sub_file, triples)
 
 
 if __name__ == '__main__':
     main(sys.argv[1])
-    
