@@ -28,7 +28,7 @@ def get_config(config_path):
     return config
 
 
-def get_trips(aide, subject):
+def get_sub_trips(aide, subject, quite):
     '''
     gets trips that should be removed from vivo with this specific data problem
     '''
@@ -41,7 +41,7 @@ def get_trips(aide, subject):
     }}
     '''.format(subject)
 
-    res = aide.do_query(q)
+    res = aide.do_query(q, quite)
     authors = {}
     triples = []
     for listing in res['results']['bindings']:
@@ -50,7 +50,7 @@ def get_trips(aide, subject):
         if uri not in authors.keys():
             authors[uri] = relation
         else:
-            triples.extend(aide.get_all_triples(relation))
+            triples.extend(aide.get_all_triples(relation, quite))
     return triples
 
 
@@ -67,10 +67,9 @@ def main(config_path):
     sub_file = os.path.join(path, 'sub_single_pub_dupes.rdf')
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
 
-    triples = get_trips(aide, subject)
+    triples = get_sub_trips(aide, subject)
     aide.create_file(sub_file, triples)
 
 
 if __name__ == '__main__':
     main(sys.argv[1])
-    

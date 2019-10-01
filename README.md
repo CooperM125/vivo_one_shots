@@ -3,8 +3,12 @@ Quick programs for fixing VIVO issues
 Python3
 ## Setup
 create virtual enviroment
+
 pip install request
+
 pip install pyyaml
+
+fill out feilds in config.yaml
 
 ## Person Audits
 Tools for cleaning up Persons in VIVO
@@ -23,3 +27,20 @@ This tool is used when an Article has duplicated authors that are not a result o
 
 ### clean_pubs_dupe_authorship
 This tool is for when an Article is linked multiple times to a single Person i.e. they have multiple Authorships with one Person.
+
+# MultiShot
+Tool that runs through oneshots and corrects data problems in vivo.
+
+Current supported query oneshot combos
+<li> pubs_dupe_authorships - cleans duplicate authorships</li>
+<li> more coming soon!</li>
+
+## Running 
+The command to run all oneshots is:
+
+## Development
+Writing a oneshot for multishot there must be at least one of the two functiuns.
+<li> get_add_trips - returns triples that need to be added into vivo given uri.</li>
+<li> get_sub_trips - returns triples that need to be removed into vivo given uri.</li>
+
+For more detail please look at the oneshot.example file. 

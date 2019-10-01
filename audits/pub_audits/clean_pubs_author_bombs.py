@@ -46,6 +46,7 @@ def get_authors(aide, subject):
     '''.format(subject)
 
     res = aide.do_query(q)
+    authors = {}
     for listing in res['results']['bindings']:
         author = Person()
         uri = aide.parse_json(listing, 'author')
@@ -87,9 +88,17 @@ def get_triples(aide, authors):
             triples.extend(aide.get_all_triples(uri))
     return triples
 
+def get_sub_trips(aide, subject, test):
+    '''
+    gets trips that should be removed from vivo for multishot
+    '''
+    authors = get_authors(aide, subject)
+    authors = get_relates(aide, authors, subject)
+    triples = get_triples(aide, authors)
+    return triples
 
 def main(config_path):
-    config= get_config(config_path)
+    config = get_config(config_path)
 
     subject = config.get('subject')
     timestamp = datetime.now().strftime("%Y_%m_%d")
@@ -101,8 +110,8 @@ def main(config_path):
     sub_file = os.path.join(path, 'bomb_sub_out.rdf')
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
 
-    authors = get_authors(connection, subject)
-    authors = get_relates(connection, authors, subject)
+    authors = get_authors(aide, subject)
+    authors = get_relates(aide, authors, subject)
     triples = get_triples(aide, authors)
     aide.create_file(sub_file, triples)
 
