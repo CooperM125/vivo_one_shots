@@ -3,13 +3,14 @@ import urllib3
 urllib3.disable_warnings()
 
 class Aide(object):
-    def __init__(self, query_endpoint, email, password):
+    def __init__(self, query_endpoint, email, password, silent=False):
         self.q_endpoint = query_endpoint
         self.email = email
         self.password = password
+        self.silent = silent
 
-    def do_query(self, query, silent=False):
-        if not silent:
+    def do_query(self, query):
+        if not self.silent:
             print("Query:\n" + query)
         payload = {
             'email': self.email,
@@ -18,7 +19,7 @@ class Aide(object):
         }
         headers = {'Accept': 'application/sparql-results+json'}
         response = requests.get(self.q_endpoint, params=payload, headers=headers, verify=False)
-        if not silent:
+        if not self.silent:
             print(response)
         if response.status_code == 400:
             exit("Error: check query")
@@ -30,11 +31,11 @@ class Aide(object):
             exit("Error: check server")
         return response.json()
 
-    def get_all_triples(self, subject, silent=False):
+    def get_all_triples(self, subject):
         triples = []
         # edit to specify graph k2 (right befoir where)
         s_query = """ SELECT ?s ?p ?o WHERE{{<{}> ?p ?o .}} """.format(subject)
-        s_res = self.do_query(s_query, silent)
+        s_res = self.do_query(s_query)
         for listing in s_res['results']['bindings']:
             pred = self.parse_json(listing, 'p', True)
             obj = self.parse_json(listing, 'o', True)
@@ -42,7 +43,7 @@ class Aide(object):
             triples.append(trip)
         # edit to specify graph k2
         o_query = """ SELECT ?s ?p ?o WHERE{{?s ?p <{}> .}} """.format(subject)
-        o_res = self.do_query(o_query, silent)
+        o_res = self.do_query(o_query)
         for listing in o_res['results']['bindings']:
             subj = self.parse_json(listing, 's', True)
             pred = self.parse_json(listing, 'p', True)
@@ -69,3 +70,6 @@ class Aide(object):
         with open(filename, 'a+') as rdf:
             rdf.write(" . \n".join(triples))
             rdf.write(" . \n")
+
+    def set_silent(self, silent):
+        self.silent = silent  # sets silent for terminal

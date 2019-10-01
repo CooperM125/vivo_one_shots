@@ -31,7 +31,7 @@ def parse_args(args=sys.argv) -> (list, list):
     parser = optparse.OptionParser()
     parser.add_option("--fixUri", action="store", dest="uri", default="", help="Not yet implamented")  # TODO not yet implamented
     parser.add_option("--queries", action="store", dest="queryPath", default="queries", help="")
-    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="audits", help="")  # may be oneshots but generlize to have file. 
+    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="audits", help="")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
     parser.add_option("--config", action="store", dest="config", default="config.yaml", help="")
     return parser.parse_args(args)
@@ -75,7 +75,7 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     # ~ end of setup
     logging.info("Queries that will be run: %s", all_queries)
 
-    aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'))
+    aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
     logging.info('Running queries...')
 
     subjects = []
@@ -85,21 +85,21 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
         logging.info("Opened query file %s", query_file)
         cleaner_name = pairs[query_file][:-3]
         logging.info('Attempting %s query...', query_file[:-3])
-        subjects = query_uri(aide, queries_path + '/' + query_file, quiet)
+        subjects = query_uri(aide, queries_path + '/' + query_file)
         logging.info('Query was successful, %s dataproblems found in %s query', len(subjects), query_file[:-3])
 
         # get trips for both add and sub (try and accept)
         # # make function for add and sub (may need to run both at once instead of one at a time)
         corrected = False
         try:
-            count_sub = sub_cleaner(aide, subjects, cleaner_name, quiet)
+            count_sub = sub_cleaner(aide, subjects, cleaner_name)
             corrected = True
         except AttributeError:
             logging.warn('Could not run sub_cleaner')
             count_sub = 0
             pass
         try:
-            count_add = add_cleaner(aide, subjects, cleaner_name, quiet)
+            count_add = add_cleaner(aide, subjects, cleaner_name)
             corrected = True
         except AttributeError:
             if not corrected:
@@ -114,7 +114,7 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     logging.info('Total datum corrected %s', total_count)
 
 
-def add_cleaner(aide, subjects, cleaner_name, quiet):
+def add_cleaner(aide, subjects, cleaner_name):
     count = 0
     type = check_Type(cleaner_name)
     cleaner_type = getattr(audits, type)
@@ -124,14 +124,14 @@ def add_cleaner(aide, subjects, cleaner_name, quiet):
     for subject in subjects:
         count += 1
         try:
-            trips = oneShot_func(aide, subject, quiet)
+            trips = oneShot_func(aide, subject)
             save_trips(aide, subject, trips, cleaner_name + '_add')  # saves to file data_out
         except AttributeError:
             logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
             break
     return count
 
-def sub_cleaner(aide, subjects, cleaner_name, quiet):
+def sub_cleaner(aide, subjects, cleaner_name):
     count = 0
     type = check_Type(cleaner_name)
     files = getattr(audits, type)
@@ -141,7 +141,7 @@ def sub_cleaner(aide, subjects, cleaner_name, quiet):
     for subject in subjects:
         count += 1
         try:
-            trips = oneShot_func(aide, subject, quiet)
+            trips = oneShot_func(aide, subject)
             save_trips(aide, subject, trips, cleaner_name + '_sub')  # saves to file data_out
         except AttributeError:
             logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
@@ -176,11 +176,11 @@ def save_trips(aide, subject, triples, cleaner_name):
     sub_file = os.path.join(path, cleaner_name + '.rdf')
     aide.create_file(sub_file, triples)
 
-def query_uri(aide, file, quiet) -> (list):
+def query_uri(aide, file) -> (list):
     uris = []
     f = open(file, 'r')
     query = f.read()
-    res = aide.do_query(query, quiet)
+    res = aide.do_query(query)
     uri_type = fetch_uri_type(res)
     for listing in res['results']['bindings']:
         uris.append(aide.parse_json(listing, uri_type))  # needs to be generlized (pubs)

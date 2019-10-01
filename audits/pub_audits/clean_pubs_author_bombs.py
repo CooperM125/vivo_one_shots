@@ -88,7 +88,7 @@ def get_triples(aide, authors):
             triples.extend(aide.get_all_triples(uri))
     return triples
 
-def get_sub_trips(aide, subject, test):
+def get_sub_trips(aide, subject):
     '''
     gets trips that should be removed from vivo for multishot
     '''

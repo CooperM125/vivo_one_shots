@@ -28,7 +28,7 @@ def get_config(config_path):
     return config
 
 
-def get_sub_trips(aide, subject, quite):
+def get_sub_trips(aide, subject):
     '''
     gets trips that should be removed from vivo with this specific data problem
     '''
@@ -41,7 +41,7 @@ def get_sub_trips(aide, subject, quite):
     }}
     '''.format(subject)
 
-    res = aide.do_query(q, quite)
+    res = aide.do_query(q)
     authors = {}
     triples = []
     for listing in res['results']['bindings']:
@@ -50,7 +50,7 @@ def get_sub_trips(aide, subject, quite):
         if uri not in authors.keys():
             authors[uri] = relation
         else:
-            triples.extend(aide.get_all_triples(relation, quite))
+            triples.extend(aide.get_all_triples(relation))
     return triples
 
 
