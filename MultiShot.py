@@ -23,13 +23,17 @@ def main():
     config = get_config(opts.config)
 
     logging.info("Starting MultiShot...")
-    one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath, opts.quiet)
+    # other modes
+    if opts.uri != "":
+        single_target(config, logging, opts.uri, opts.oneShotPath, opts.quiet)
+    else:
+        one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath, opts.quiet)
     logging.info("Finished MultiShot... data_out file has triples to upload")
     return
 
 def parse_args(args=sys.argv) -> (list, list):
     parser = optparse.OptionParser()
-    parser.add_option("--fixUri", action="store", dest="uri", default="", help="Not yet implamented")  # TODO not yet implamented
+    parser.add_option("--fixUri", action="store", dest="uri", default="", help="")  
     parser.add_option("--queries", action="store", dest="queryPath", default="queries", help="")
     parser.add_option("--oneShots", action="store", dest="oneShotPath", default="audits", help="")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
@@ -113,10 +117,23 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
         logging.info('Datum corrected %s using %s', count_add + count_sub, cleaner_name)
     logging.info('Total datum corrected %s', total_count)
 
+def single_target(config, logging, uri, oneShot_path, quiet):  #
+    '''
+    runs multishot on one uri if applicable.
+    '''
+
+    aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
+    # test type of uri given
+    type = fetch_uri_type(aide, uri)
+    # exit if problems
+    # find the directory that applies to type
+    # pull all oneshots
+    # iterorate through theme all
+
 
 def add_cleaner(aide, subjects, cleaner_name):
     count = 0
-    type = check_Type(cleaner_name)
+    type = check_type(cleaner_name)
     cleaner_type = getattr(audits, type)
     oneShot = getattr(cleaner_type, cleaner_name)  # NOTE must be a better way 
     oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
@@ -133,7 +150,7 @@ def add_cleaner(aide, subjects, cleaner_name):
 
 def sub_cleaner(aide, subjects, cleaner_name):
     count = 0
-    type = check_Type(cleaner_name)
+    type = check_type(cleaner_name)
     files = getattr(audits, type)
     oneShot = getattr(files, cleaner_name)  # NOTE must be a better way 
     oneShot_func = getattr(oneShot, "get_sub_trips")
@@ -181,7 +198,7 @@ def query_uri(aide, file) -> (list):
     f = open(file, 'r')
     query = f.read()
     res = aide.do_query(query)
-    uri_type = fetch_uri_type(res)
+    uri_type = parse_uri_type(res)
     for listing in res['results']['bindings']:
         uris.append(aide.parse_json(listing, uri_type))
     return uris
@@ -208,11 +225,11 @@ def load_oneshots(queries_path, oneShot_path, logging):
 
     return all_oneshots, all_queries
 
-def fetch_uri_type(res):
+def parse_uri_type(res):
     type = list(res['results']['bindings'][0])[0]
     return type
 
-def check_Type(cleaner_name):
+def check_type(cleaner_name):
     '''
     check what type of cleaner given name
     '''
@@ -226,6 +243,26 @@ def check_Type(cleaner_name):
         type = 'misc_audits'
         logging.error('Could not find cleaner %s', cleaner_name)
     return type
+
+def fetch_uri_type(aide, uri) -> str:
+    '''
+    queries the uri to find if its a pub, author, ext..
+    '''
+    q = '''\
+    SELECT ?types
+    WHERE {{
+    <{}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?types .
+    }}
+        '''.format(uri)
+    res = aide.do_query(q)
+    for type in res['results']['bindings']:
+        uri_type = type['types']['value']
+        # add test to see if multiple types at once
+        if 'Person' in uri_type:
+            return 'Person'
+        elif 'AcademicArticle' in uri_type:
+            return 'AcademicArticle'
+    logging.error('Could not find type for %s', uri)
 
 if __name__ == '__main__':
     main()
