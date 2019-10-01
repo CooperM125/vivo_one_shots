@@ -11,4 +11,4 @@ WHERE {
   ?person a foaf:Person.
 } GROUP BY ?publication
 HAVING (COUNT(DISTINCT(?person)) < COUNT(?person))
-LIMIT 2
+LIMIT 1

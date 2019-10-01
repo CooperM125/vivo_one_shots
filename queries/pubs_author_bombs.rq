@@ -1,6 +1,6 @@
 PREFIX  bibo: <http://purl.org/ontology/bibo/>
 PREFIX vivo: <http://vivoweb.org/ontology/core#>
-SELECT (COUNT(?pub) as ?count) where{
+SELECT ?pub {
     SELECT ?pub 
     WHERE{
         ?pub vivo:relatedBy ?authorship.
@@ -9,4 +9,4 @@ SELECT (COUNT(?pub) as ?count) where{
     }GROUP BY ?pub
     HAVING(COUNT(DISTINCT(?authorship)) > 50)
 }
-LIMIT 2
+LIMIT 1
