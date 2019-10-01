@@ -1,0 +1,14 @@
+# finds publications that have duplicate authors
+PREFIX  bibo: <http://purl.org/ontology/bibo/>
+PREFIX vivo: <http://vivoweb.org/ontology/core#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT ?publication
+WHERE {
+  ?publication a bibo:AcademicArticle .
+  ?publication vivo:relatedBy ?authorship .
+  ?authorship vivo:relates ?person .
+  ?person a foaf:Person.
+} GROUP BY ?publication
+HAVING (COUNT(DISTINCT(?person)) < COUNT(?person))
+LIMIT 1

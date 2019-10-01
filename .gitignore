@@ -135,4 +135,3 @@ data_out/*
 config.yaml
 .vscode/*
 TODO.todo 
-unittest/*

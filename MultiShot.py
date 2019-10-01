@@ -118,7 +118,7 @@ def add_cleaner(aide, subjects, cleaner_name):
     count = 0
     type = check_Type(cleaner_name)
     cleaner_type = getattr(audits, type)
-    oneShot = getattr(cleaner_type, cleaner_name)  # NOTE must be a better way # TODO make generial
+    oneShot = getattr(cleaner_type, cleaner_name)  # NOTE must be a better way 
     oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
 
     for subject in subjects:
@@ -135,7 +135,7 @@ def sub_cleaner(aide, subjects, cleaner_name):
     count = 0
     type = check_Type(cleaner_name)
     files = getattr(audits, type)
-    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way #TODO make generial
+    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way 
     oneShot_func = getattr(oneShot, "get_sub_trips")
 
     for subject in subjects:
@@ -183,7 +183,7 @@ def query_uri(aide, file) -> (list):
     res = aide.do_query(query)
     uri_type = fetch_uri_type(res)
     for listing in res['results']['bindings']:
-        uris.append(aide.parse_json(listing, uri_type))  # needs to be generlized (pubs)
+        uris.append(aide.parse_json(listing, uri_type))
     return uris
 
 def load_oneshots(queries_path, oneShot_path, logging):
@@ -216,13 +216,14 @@ def check_Type(cleaner_name):
     '''
     check what type of cleaner given name
     '''
-    if '_pubs_' in cleaner_name:
+    if 'pubs_' in cleaner_name:
         type = 'pub_audits'
-    elif '_person_' in cleaner_name:
+    elif 'person_' in cleaner_name:
         type = 'person_audits'
-    elif '_misc_' in cleaner_name:
+    elif 'misc_' in cleaner_name:
         type = 'misc_audits'
     else:
+        type = 'misc_audits'
         logging.error('Could not find cleaner %s', cleaner_name)
     return type
 
