@@ -12,6 +12,7 @@ from utils import Aide
 import audits
 from audits.pub_audits import clean_pubs_dupe_authorships  # put in init.py
 from audits.pub_audits import clean_pubs_author_bombs  # put in init.py
+from audits import pub_audits
 from audits import person_audits
 from audits import misc_audits
 
@@ -73,15 +74,14 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     """Loops over a list of one_shot fixes.
         aka the heart of MultiShot :)
     """
-    # ~ set up
+
     all_oneshots, all_queries = load_oneshots(queries_path, oneShot_path, logging)
     pairs = match_oneshot_to_query(all_oneshots, all_queries, logging)
-    # ~ end of setup
+
     logging.info("Queries that will be run: %s", all_queries)
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
     logging.info('Running queries...')
-
     subjects = []
     total_count = 0
     # add counter for number of data problems fixed
@@ -92,114 +92,26 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
         subjects = query_uri(aide, queries_path + '/' + query_file)
         logging.info('Query was successful, %s dataproblems found in %s query', len(subjects), query_file[:-3])
 
-        # get trips for both add and sub (try and accept)
-        # # make function for add and sub (may need to run both at once instead of one at a time)
-        corrected = False
-        try:
-            count_sub = sub_cleaner(aide, subjects, cleaner_name)
-            corrected = True
-        except AttributeError:
-            logging.warn('Could not run sub_cleaner')
-            count_sub = 0
-            pass
-        try:
-            count_add = add_cleaner(aide, subjects, cleaner_name)
-            corrected = True
-        except AttributeError:
-            if not corrected:
-                logging.error('Failed to run oneshot %s', query_file[:-3])
-                sys.exit(2)
-            else:
-                logging.warn('Could not run add_cleaner')
-                count_add = 0
-            pass
-        total_count += (count_add + count_sub)
-        logging.info('Datum corrected %s using %s', count_add + count_sub, cleaner_name)
-    logging.info('Total datum corrected %s', total_count)
+        count = cleaners(aide, cleaner_name, subjects)
 
-def single_target(config, logging, uri, oneShot_path, quiet):  #
+def single_target(config, logging, uri, oneShot_path, quiet):
     '''
     runs all multishot that apply to one uri if applicable.
     '''
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
-    # test type of uri given
     type = fetch_uri_type(aide, uri)
-    # exit if problems
-    # find the directory that applies to type
-    dir = 'audits/' + type + 'audits'
 
+    dir = 'audits/' + type + 'audits'
+    listD = os.listdir(dir)
     # pull all oneshots
-    cleaners = ([f for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
-    cleaners = ['clean_pubs_dupe_authorships.py']
-    cleaners.sort()
+    oneshots = ([f[:-3] for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
+    oneshots.sort()
     # iterorate through theme all
     list_uri = []
     list_uri.append(uri)
-    for cleaner in cleaners:
-        total_count = 0
-        logging.info('Starting multishot on target uri %s', uri)
-
-        # get trips for both add and sub (try and accept)
-        # # make function for add and sub (may need to run both at once instead of one at a time)
-        corrected = False
-        cleaner = cleaner[:-3]
-        try:
-            count_sub = sub_cleaner(aide, list_uri, cleaner)
-            corrected = True
-        except AttributeError:
-            logging.warn('Could not run sub_cleaner')
-            count_sub = 0
-            pass
-        try:
-            count_add = add_cleaner(aide, list_uri, cleaner)
-            corrected = True
-        except AttributeError:
-            if not corrected:
-                logging.error('Failed to run oneshot on %s', uri)
-                sys.exit(2)
-            else:
-                logging.warn('Could not run add_cleaner')
-                count_add = 0
-            pass
-        total_count += (count_add + count_sub)
-        logging.info('Datum corrected %s from uri %s', count_add + count_sub, uri)
-    logging.info('Total datum corrected %s', total_count)
-
-
-def add_cleaner(aide, subjects, cleaner_name):
-    count = 0
-    type = check_type(cleaner_name)
-    cleaner_type = getattr(audits, type)
-    oneShot = getattr(cleaner_type, cleaner_name)  # NOTE must be a better way 
-    oneShot_func = getattr(oneShot, 'get_add_trips')  # returns the gettrips function for specific cleaner.
-
-    for subject in subjects:
-        count += 1
-        try:
-            trips = oneShot_func(aide, subject)
-            save_trips(aide, subject, trips, cleaner_name + '_add')  # saves to file data_out
-        except AttributeError:
-            logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
-            break
-    return count
-
-def sub_cleaner(aide, subjects, cleaner_name):
-    count = 0
-    type = check_type(cleaner_name)
-    files = getattr(audits, type)
-    oneShot = getattr(files, cleaner_name)  # NOTE must be a better way 
-    oneShot_func = getattr(oneShot, "get_sub_trips")
-
-    for subject in subjects:
-        count += 1
-        try:
-            trips = oneShot_func(aide, subject)
-            save_trips(aide, subject, trips, cleaner_name + '_sub')  # saves to file data_out
-        except AttributeError:
-            logging.error('Could not run oneshot %s on subject %s', cleaner_name, subject)
-            break
-    return count
+    for oneshot in oneshots:
+        count = cleaners(aide, oneshot, list_uri)
 
 
 def match_oneshot_to_query(oneshots, queries, logging):
@@ -220,14 +132,18 @@ def save_trips(aide, subject, triples, cleaner_name):
     '''
     saves trips to be uploaded in data_out directory
     '''
-    timestamp = datetime.now().strftime("%Y_%m_%d")
-    path = 'data_out/' + timestamp + '/' + subject.split('/')[-1]
-    try:
-        os.makedirs(path)
-    except FileExistsError:
-        pass
-    sub_file = os.path.join(path, cleaner_name + '.rdf')
-    aide.create_file(sub_file, triples)
+    if triples is not None:
+        logging.debug('Saving tripples for %s', cleaner_name)
+        timestamp = datetime.now().strftime("%Y_%m_%d")
+        path = 'data_out/' + timestamp + '/' + subject.split('/')[-1]
+        try:
+            os.makedirs(path)
+        except FileExistsError:
+            pass
+        sub_file = os.path.join(path, cleaner_name + '.rdf')
+        aide.create_file(sub_file, triples)
+    else:
+        logging.debug('Trips %s has not triples to save', cleaner_name)
 
 def query_uri(aide, file) -> (list):
     uris = []
@@ -265,7 +181,7 @@ def parse_uri_type(res):
     type = list(res['results']['bindings'][0])[0]
     return type
 
-def check_type(cleaner_name):
+def check_cleaner_type(cleaner_name):
     '''
     check what type of cleaner given name
     '''
@@ -301,6 +217,59 @@ def fetch_uri_type(aide, uri) -> str:
             return 'pub_'
     logging.error('Could not find type for %s', uri)
     sys.exit(2)
+
+def cleaners(aide, oneshot_name, uris):
+    '''
+    Takes in cleaner name and list of uris and outputs the triples to be removed and added
+    '''
+    logging.info('Starting oneshot for %s', oneshot_name)
+    # TODO Change when using ABC
+    type = check_cleaner_type(oneshot_name)
+    files = getattr(audits, type)
+    oneShot = getattr(files, oneshot_name)
+
+    # remove this bit of code when turning to abc
+    hasCleaner = False
+    try:
+        add_function = getattr(oneShot, 'get_add_trips')
+        hasCleaner = True
+    except AttributeError:
+        logging.warn('Cleaner %s does not have get_add_trips function', oneshot_name)
+        add_function = None
+    try:
+        sub_function = getattr(oneShot, 'get_sub_trips')
+        hasCleaner = True
+    except AttributeError:
+        logging.warn('Cleaner %s does not have get_add_trips function', oneshot_name)
+        sub_function = None
+    # remove this bit of code when turning to abc
+
+    count = 0
+    for uri in uris:
+        if add_function != None:
+            try:
+                add_trips = add_function(aide, uri)
+                count += len(add_trips)
+            except Exception:
+                logging.error('Cleaner %s failed, skipping uri %s', oneshot_name, uri)
+        else:
+            logging.warn('uri %s does not neede to run %s ', uri, oneshot_name)
+
+        if sub_function != None:
+            try:
+                sub_trips = sub_function(aide, uri)
+                count += len(sub_trips)
+            except Exception:
+                logging.error('Cleaner %s failed, skipping uri %s', oneshot_name, uri)
+        else:
+            logging.warn('uri %s does not neede to run %s ', uri, oneshot_name)
+
+        if add_function != None:
+            save_trips(aide, uri, add_trips, oneshot_name + '_add')
+        if sub_function != None:
+            save_trips(aide, uri, sub_trips, oneshot_name + '_sub')
+    return count
+
 
 if __name__ == '__main__':
     main()
