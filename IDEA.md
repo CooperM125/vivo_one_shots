@@ -36,4 +36,6 @@ Use the abstract base class. Must have both get_sub_trips and get_add_trips. It 
 
 #### Notes
 
-have oneshots double check if uri really needs the oneshot.
+Have oneshots double check if uri really needs the oneshot.
+
+Oneshot is composed of two cleaners.
