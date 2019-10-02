@@ -92,6 +92,7 @@ def get_sub_trips(aide, subject):
     '''
     gets trips that should be removed from vivo for multishot
     '''
+    # TODO Test to see if subject applies here
     authors = get_authors(aide, subject)
     authors = get_relates(aide, authors, subject)
     triples = get_triples(aide, authors)

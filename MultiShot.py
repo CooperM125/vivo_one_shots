@@ -119,7 +119,7 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
 
 def single_target(config, logging, uri, oneShot_path, quiet):  #
     '''
-    runs multishot on one uri if applicable.
+    runs all multishot that apply to one uri if applicable.
     '''
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
@@ -127,8 +127,44 @@ def single_target(config, logging, uri, oneShot_path, quiet):  #
     type = fetch_uri_type(aide, uri)
     # exit if problems
     # find the directory that applies to type
+    dir = 'audits/' + type + 'audits'
+
     # pull all oneshots
+    cleaners = ([f for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
+    cleaners = ['clean_pubs_dupe_authorships.py']
+    cleaners.sort()
     # iterorate through theme all
+    list_uri = []
+    list_uri.append(uri)
+    for cleaner in cleaners:
+        total_count = 0
+        logging.info('Starting multishot on target uri %s', uri)
+
+        # get trips for both add and sub (try and accept)
+        # # make function for add and sub (may need to run both at once instead of one at a time)
+        corrected = False
+        cleaner = cleaner[:-3]
+        try:
+            count_sub = sub_cleaner(aide, list_uri, cleaner)
+            corrected = True
+        except AttributeError:
+            logging.warn('Could not run sub_cleaner')
+            count_sub = 0
+            pass
+        try:
+            count_add = add_cleaner(aide, list_uri, cleaner)
+            corrected = True
+        except AttributeError:
+            if not corrected:
+                logging.error('Failed to run oneshot on %s', uri)
+                sys.exit(2)
+            else:
+                logging.warn('Could not run add_cleaner')
+                count_add = 0
+            pass
+        total_count += (count_add + count_sub)
+        logging.info('Datum corrected %s from uri %s', count_add + count_sub, uri)
+    logging.info('Total datum corrected %s', total_count)
 
 
 def add_cleaner(aide, subjects, cleaner_name):
@@ -247,6 +283,7 @@ def check_type(cleaner_name):
 def fetch_uri_type(aide, uri) -> str:
     '''
     queries the uri to find if its a pub, author, ext..
+    currently only suppoprts person and accademicartical type
     '''
     q = '''\
     SELECT ?types
@@ -257,12 +294,13 @@ def fetch_uri_type(aide, uri) -> str:
     res = aide.do_query(q)
     for type in res['results']['bindings']:
         uri_type = type['types']['value']
-        # add test to see if multiple types at once
+        # TODO add test to see if multiple types at once
         if 'Person' in uri_type:
-            return 'Person'
+            return 'person_'
         elif 'AcademicArticle' in uri_type:
-            return 'AcademicArticle'
+            return 'pub_'
     logging.error('Could not find type for %s', uri)
+    sys.exit(2)
 
 if __name__ == '__main__':
     main()
