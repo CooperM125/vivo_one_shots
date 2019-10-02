@@ -43,20 +43,19 @@ class Test_MultiShot(unittest.TestCase):
         self.assertEqual(expected_oneshots, all_oneshots)
         self.assertEqual(expected_queries, all_queries)
 
-    def test_check_type(self):
+    def test_check_cleaner_type(self):
         clean_name1 = 'unittest'
-        type1 = MultiShot.check_Type(clean_name1)
+        type1 = MultiShot.check_cleaner_type(clean_name1)
         expected1 = 'misc_audits'
 
         clean_name2 = 'trying to find pubs_'
-        type2 = MultiShot.check_Type(clean_name2)
+        type2 = MultiShot.check_cleaner_type(clean_name2)
         expected2 = 'pub_audits'
 
         clean_name3 = 'trying to find ___misc_'
-        type3 = MultiShot.check_Type(clean_name3)
+        type3 = MultiShot.check_cleaner_type(clean_name3)
         expected3 = 'misc_audits'
 
         self.assertEqual(expected1, type1)
         self.assertEqual(expected2, type2)
         self.assertEqual(expected3, type3)
-

@@ -19,26 +19,29 @@ from audits import misc_audits
 
 def main():
 
-    (opts, args) = parse_args()
+    opts = parse_args()
     configure_logging(opts.quiet)
     config = get_config(opts.config)
 
-    logging.info("Starting MultiShot...")
+
     # other modes
     if opts.uri != "":
-        single_target(config, logging, opts.uri, opts.oneShotPath, opts.quiet)
+        logging.info("Starting Multishot...")
+        target_multishot(config, logging, opts.uri, opts.audits, opts.oneshots, opts.quiet)
     else:
-        one_shot_iterator(config, logging, opts.queryPath, opts.oneShotPath, opts.quiet)
+        logging.info("Starting Dfixer...") # like a dfixer
+        one_shot_iterator(config, logging, opts.queryPath, opts.audits, opts.quiet)
     logging.info("Finished MultiShot... data_out file has triples to upload")
     return
 
-def parse_args(args=sys.argv) -> (list, list):
-    parser = optparse.OptionParser()
-    parser.add_option("--fixUri", action="store", dest="uri", default="", help="")  
-    parser.add_option("--queries", action="store", dest="queryPath", default="queries", help="")
-    parser.add_option("--oneShots", action="store", dest="oneShotPath", default="audits", help="")
-    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
-    parser.add_option("--config", action="store", dest="config", default="config.yaml", help="")
+def parse_args(args=sys.argv[1:]) -> (list, list):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fixUri", type=parse_lists, dest="uri", default="", help="")
+    parser.add_argument("--queries", action="store", dest="queryPath", default="queries", help="")
+    parser.add_argument("--audits", action="store", dest="audits", default="audits", help="")
+    parser.add_argument("--oneShots", type=parse_lists, dest="oneshots", default="")
+    parser.add_argument("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
+    parser.add_argument("--config", action="store", dest="config", default="config.yaml", help="")
     return parser.parse_args(args)
 
 
@@ -72,7 +75,7 @@ def get_config(config_path):
 
 def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
     """Loops over a list of one_shot fixes.
-        aka the heart of MultiShot :)
+        aka the heart of Dfixer
     """
 
     all_oneshots, all_queries = load_oneshots(queries_path, oneShot_path, logging)
@@ -94,24 +97,26 @@ def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
 
         count = cleaners(aide, cleaner_name, subjects)
 
-def single_target(config, logging, uri, oneShot_path, quiet):
+def target_multishot(config, logging, uris, oneShot_path, oneshots, quiet):
     '''
-    runs all multishot that apply to one uri if applicable.
+    runs all multishot that apply to a given list of the *same type* of uris if applicable.
     '''
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
-    type = fetch_uri_type(aide, uri)
+    type = fetch_uri_type(aide, uris)
 
     dir = 'audits/' + type + 'audits'
     listD = os.listdir(dir)
-    # pull all oneshots
-    oneshots = ([f[:-3] for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
+
+    if oneshots[0].find('.py') != -1:
+        oneshots = [f[:-3] for f in oneshots if f.endswith('.py')]
+    else:
+        oneshots = ([f[:-3] for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
     oneshots.sort()
-    # iterorate through theme all
-    list_uri = []
-    list_uri.append(uri)
+
+    uris
     for oneshot in oneshots:
-        count = cleaners(aide, oneshot, list_uri)
+        count = cleaners(aide, oneshot, uris)
 
 
 def match_oneshot_to_query(oneshots, queries, logging):
@@ -196,7 +201,7 @@ def check_cleaner_type(cleaner_name):
         logging.error('Could not find cleaner %s', cleaner_name)
     return type
 
-def fetch_uri_type(aide, uri) -> str:
+def fetch_uri_type(aide, uris) -> str:
     '''
     queries the uri to find if its a pub, author, ext..
     currently only suppoprts person and accademicartical type
@@ -206,7 +211,7 @@ def fetch_uri_type(aide, uri) -> str:
     WHERE {{
     <{}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?types .
     }}
-        '''.format(uri)
+        '''.format(uris[0])
     res = aide.do_query(q)
     for type in res['results']['bindings']:
         uri_type = type['types']['value']
@@ -215,7 +220,7 @@ def fetch_uri_type(aide, uri) -> str:
             return 'person_'
         elif 'AcademicArticle' in uri_type:
             return 'pub_'
-    logging.error('Could not find type for %s', uri)
+    logging.error('Could not find type for %s', uris)
     sys.exit(2)
 
 def cleaners(aide, oneshot_name, uris):
@@ -270,6 +275,22 @@ def cleaners(aide, oneshot_name, uris):
             save_trips(aide, uri, sub_trips, oneshot_name + '_sub')
     return count
 
+def parse_lists(text: str):
+    ''' Parse the uris and returns a list of uris '''
+    clean_uris = text.strip().replace(' ', '')
+    uri_list = []
+    if text[:1] == '@':
+        uri_list = parse_list_file(clean_uris)
+    else:
+        uri_list = clean_uris.split(',')
+    if len(uri_list) > 9999:
+        raise argparse.ArgumentError('Too many items to parse')
+    return uri_list
+
+def parse_list_file(file):
+    ''' Opens given file with list of uri and reads them all '''
+    with open(file, 'r') as f:
+        return[line.strip() for line in f.readLines()]
 
 if __name__ == '__main__':
     main()
