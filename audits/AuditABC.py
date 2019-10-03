@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ..utils import Aide
+from utils import Aide
 
 
 class AuditABC(ABC):
