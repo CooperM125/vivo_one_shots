@@ -23,23 +23,16 @@ def main():
     configure_logging(opts.quiet)
     config = get_config(opts.config)
 
+    multishot(config, logging, opts.uri, opts.oneshots, opts.queries, opts.quiet)
 
-    # other modes
-    if opts.uri != "":
-        logging.info("Starting Multishot...")
-        target_multishot(config, logging, opts.uri, opts.audits, opts.oneshots, opts.quiet)
-    else:
-        logging.info("Starting Dfixer...") # like a dfixer
-        one_shot_iterator(config, logging, opts.queryPath, opts.audits, opts.quiet)
     logging.info("Finished MultiShot... data_out file has triples to upload")
     return
 
 def parse_args(args=sys.argv[1:]) -> (list, list):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fixUri", type=parse_lists, dest="uri", default="", help="")
-    parser.add_argument("--queries", action="store", dest="queryPath", default="queries", help="")
-    parser.add_argument("--audits", action="store", dest="audits", default="audits", help="")
-    parser.add_argument("--oneShots", type=parse_lists, dest="oneshots", default="")
+    parser.add_argument("--fixUri", type=parse_lists, dest="uri", default="", help="Pick uris to input")
+    parser.add_argument("--oneShots", type=parse_lists, dest="oneshots", default="", help="Pick oneshots to run")
+    parser.add_argument("--query", type=parse_lists, dest="queries", default="", help="Pick a query to feed Uri into oneshots")
     parser.add_argument("--quiet", action="store_true", dest="quiet", default=False, help="Set this flagg to quiet terminal output")
     parser.add_argument("--config", action="store", dest="config", default="config.yaml", help="")
     return parser.parse_args(args)
@@ -73,63 +66,68 @@ def get_config(config_path):
         exit(e)
     return config
 
-def one_shot_iterator(config, logging, queries_path, oneShot_path, quiet):
-    """Loops over a list of one_shot fixes.
-        aka the heart of Dfixer
-    """
 
-    all_oneshots, all_queries = load_oneshots(queries_path, oneShot_path, logging)
-    pairs = match_oneshot_to_query(all_oneshots, all_queries, logging)
-
-    logging.info("Queries that will be run: %s", all_queries)
-
-    aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
-    logging.info('Running queries...')
-    subjects = []
-    total_count = 0
-    # add counter for number of data problems fixed
-    for query_file in all_queries:  # gets all subjects that need to be changed.
-        logging.info("Opened query file %s", query_file)
-        cleaner_name = pairs[query_file][:-3]
-        logging.info('Attempting %s query...', query_file[:-3])
-        subjects = query_uri(aide, queries_path + '/' + query_file)
-        logging.info('Query was successful, %s dataproblems found in %s query', len(subjects), query_file[:-3])
-
-        count = cleaners(aide, cleaner_name, subjects)
-
-def target_multishot(config, logging, uris, oneShot_path, oneshots, quiet):
+def multishot(config, logging, uris, oneshots, queries, quiet):
     '''
     runs all multishot that apply to a given list of the *same type* of uris if applicable.
     '''
 
     aide = Aide(config.get('query_endpoint'), config.get('email'), config.get('password'), quiet)
-    type = fetch_uri_type(aide, uris)
-
-    dir = 'audits/' + type + 'audits'
-    listD = os.listdir(dir)
-
-    if oneshots[0].find('.py') != -1:
-        oneshots = [f[:-3] for f in oneshots if f.endswith('.py')]
+    if uris != ['']:
+        type = fetch_uri_type(aide, uris)
     else:
-        oneshots = ([f[:-3] for f in os.listdir(dir) if f.endswith('.py') and f != '__init__.py'])
+        type = 'None'
+
+    oneshot_dir = 'audits/' + type + 'audits'
+    query_dir = 'queries/'
+
+    if queries == [''] and oneshots == [''] and uris == ['']:
+        logging.error('Can not run all queries and all oneshots at once')
+        sys.exit(2)
+    
+    if uris != [''] and oneshots != ['']:
+        oneshots = [f[:-3] for f in oneshots if f.endswith('.py')]
+
+    if uris != [''] and oneshots == ['']:
+        oneshots = [f[:-3] for f in os.listdir(oneshot_dir) if f.endswith('.py') and f != '__init__.py']
+
+    if queries[0].find('.rq') != -1 and queries != ['']:
+        queries = [f[:-3] for f in queries if f.endswith('.rq')]
+        oneshots = ['clean_' + f for f in queries]
+        paris = match_oneshot_to_query(oneshots, queries)
+
+    if oneshots[0].find('.py') != -1 and oneshots != [''] and uris == ['']:
+        oneshots = [f[:-3] for f in oneshots if f.endswith('.py')]
+        queries = [f[6:] for f in oneshots]
+        paris = match_oneshot_to_query(oneshots, queries)
+    
     oneshots.sort()
 
-    uris
     for oneshot in oneshots:
-        count = cleaners(aide, oneshot, uris)
+        if queries != ['']:
+            for query in queries:
+                uris = query_list_uris(aide, query_dir, paris[query])
+                cleaners(aide, oneshot, uris)
+        else:
+            cleaners(aide, oneshot, uris)
 
+def query_list_uris(aide, query_dir, oneshot):
+    quary_name = oneshot[6:]
+    logging.info('Running query %s', quary_name)
+    uris = query_uri(aide, query_dir + quary_name + '.rq')
+    logging.info('Query was successful, %s dataproblems found in %s query', len(uris), quary_name)
+    return uris
 
-def match_oneshot_to_query(oneshots, queries, logging):
+def match_oneshot_to_query(oneshots, queries):
     '''
     matches oneshot file name to query and return dictionary of query and oneshots
     '''
     pairs = {}
-    for query_file in queries:
-        val = str('clean_' + query_file[:-2] + 'py')
-        if val in oneshots:  # UGLY but works
-            pairs[query_file] = str('clean_' + query_file[:-2] + 'py')
+    for query in queries:
+        if str('clean_' + query) in oneshots:
+            pairs[query] = str('clean_' + query)
         else:
-            logging.warn('Could not find matching oneshot for query %s', query_file)
+            logging.warn('Could not find matching oneshot for query %s', query)
     logging.debug('All Queries matched with OneShots')
     return pairs
 
